@@ -1,0 +1,201 @@
+#!/bin/bash
+# CWP INSTALL APP TERMINAL
+yum -y update ca-certificates
+
+if [ ! -e "/usr/bin/node" ];then
+  yum -y install nodejs --enablerepo=epel
+cd /root
+npm cache clean -f
+npm install -g n
+n stable
+PATH="$PATH"
+fi
+
+if [ ! -e "/usr/bin/npm" ];then
+  yum -y install npm --enablerepo=epel
+cd /root
+fi
+
+# Old Code
+#yum -y install gcc-c++ make
+#npm install express pty.js --production
+#npm install --save express-ws --production
+#npm install node-pty --production
+#npm install socket.io --production
+#npm install xterm --production
+
+# NEW CODE
+gccversion=7
+yum install -y yum-utils centos-release-scl
+yum-config-manager --disable centos-sclo-rh
+yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-$gccversion-gcc devtoolset-$gccversion-gcc-c++
+gccenvcheck=$(cat /etc/profile | grep devtoolset-$gccversion)
+if [ -z "$gccenvcheck" ]; then
+        echo 'source /opt/rh/devtoolset-$gccversion/enable' >> /etc/profile
+        source /opt/rh/devtoolset-$gccversion/enable
+fi
+source /opt/rh/devtoolset-$gccversion/enable
+yum -y install python3
+cd /root
+npm install express --omit=dev
+npm install --save express-ws --omit=dev
+npm install node-pty --omit=dev
+npm install socket.io --omit=dev
+npm install xterm --omit=dev
+
+cat > /root/server.js <<EOF
+var express = require('express');
+var https = require('https');
+var http = require('http');
+var fs = require('fs');
+var pty = require('node-pty');
+var app = express();
+var os = require('os');
+var ipActual='';
+var ifaces = os.networkInterfaces();
+var FILE_LOCATION='/usr/local/cwp/.conf/terminaltoken.conf';
+var hostname_serv = os.hostname();
+
+Object.keys(ifaces).forEach(function (ifname) {
+  var alias = 0;
+  ifaces[ifname].forEach(function (iface) {
+    if ('IPv4' !== iface.family || iface.internal !== false) {
+      return;
+    }
+    if (alias >= 1) {
+    } else {
+      if(iface.address!="127.0.0.1"){
+    if(ipActual==""){
+           ipActual=iface.address;
+        }
+      }
+    }
+    ++alias;
+  });
+});
+app.use("/",express.static("./"));
+
+var keyFile='';
+var certFile='';
+if (fs.existsSync('/etc/pki/tls/private/hostname.key')) {
+    keyFile='/etc/pki/tls/private/hostname.key';
+}else{
+    keyFile='/etc/pki/tls/private/'+hostname_serv+'.key';
+}
+if (fs.existsSync('/etc/pki/tls/certs/hostname.bundle')) {
+    certFile='/etc/pki/tls/certs/hostname.bundle';
+}else{
+    certFile='/etc/pki/tls/certs/'+hostname_serv+'.cert';
+}
+const options = {
+  key: fs.readFileSync(keyFile),
+  cert: fs.readFileSync(certFile)
+};
+
+
+var SOCKETFILE = '/root/terminal.sock';
+if (fs.existsSync(SOCKETFILE)) {
+ fs.unlink(SOCKETFILE, function(err){});
+}
+var server = https.createServer(options,app).listen(SOCKETFILE);
+fs.chmodSync(SOCKETFILE, '600');
+var io = require('socket.io')(server,{path:'/terminal/socket.io/'});
+var Dtoken='';
+io.on('connection', function(socket){
+  socket.auth = false;
+  socket.on('authenticate', function(dataT){
+    fs.readFile(FILE_LOCATION, function (err, data) {
+      if (err){
+          console.log("Not file");
+           socket.disconnect();
+           io.close();
+      }else{
+          fs.stat(FILE_LOCATION, function (err, stats) {
+                    Dtoken=dataT.token;
+                    console.log("Authenticated socket ", socket.id);
+                    socket.auth = true;
+                        var term = pty.spawn('bash', [], {
+                            cwd: '/root',
+                            cols: 125,
+                            rows: 45
+                        });
+                        term.on('data', function(data){
+                            socket.emit('output', data);
+                        });
+                        socket.on('input', function(data){
+                            term.write(data);
+                        });
+                        socket.on("disconnect", function(){
+                            term.destroy();
+                            process.exit(0);
+                            console.log("CWP Pro Terminal browser window was closed");
+                        });
+                        socket.on("resize", function(dataC){
+                           var cols = parseInt(dataC.cols),
+                            rows = parseInt(dataC.rows);
+                            console.log(cols+" "+rows);
+                            term.resize(cols, rows);
+                        });
+            });
+      }
+  });
+  });
+});
+EOF
+
+CHKTERMINAL=`grep terminal.sock /usr/local/cwpsrv/conf/cwp_services.conf`
+
+if [ -z "$CHKTERMINAL" ];then
+echo '
+location  ~ /terminal/socket.io/ {
+  auth_pam "Secure Zone | root login required";
+  auth_pam_service_name "cwpadmin-auth";
+
+  # Header settings for application behind proxy
+  proxy_set_header Host $host;
+  # proxy_set_header X-NginX-Proxy true;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+
+  # Proxy pass settings
+  proxy_pass https://unix:/root/terminal.sock;
+
+  # Proxy redirect settings
+  proxy_redirect off;
+
+  # HTTP version settings
+  proxy_http_version 1.1;
+
+  # Response buffering from proxied server default 1024m
+  proxy_max_temp_file_size 0;
+
+  # Proxy cache bypass define conditions under the response will not be taken from cache
+  proxy_cache_bypass $http_upgrade;
+
+
+  gzip on;
+  gzip_proxied any;
+  gzip_types *;
+}' >> /usr/local/cwpsrv/conf/cwp_services.conf
+fi
+
+if [ ! -e "/etc/pam.d/cwpadmin-auth" ];then
+cat > "/etc/pam.d/cwpadmin-auth" <<EOF
+#%PAM-1.0
+auth required pam_succeed_if.so user ingroup root
+auth       include      password-auth
+auth       required     pam_shells.so
+auth       required     pam_nologin.so
+
+account    include      password-auth
+password   include      password-auth
+
+session    required     pam_loginuid.so
+session    include      password-auth
+EOF
+fi
+
+service cwpsrv reload
+sleep 3
