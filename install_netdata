@@ -1,0 +1,151 @@
+#!/bin/bash
+# Netdata installer for cwp
+
+# To uninstall netdata please use this command, it will require some confirmation
+# /usr/local/src/netdata/packaging/installer/netdata-uninstaller.sh --yes
+
+# ToDo:
+#  Automatic activate on boot
+
+# Check centos version
+centosversion=$(rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | cut -d"-" -f3 | cut -d"." -f 1 | head -n 1)
+if [[ "$centosversion" -eq "8" ]];then
+	yum -y install 'dnf-command(config-manager)'
+	yum -y install http://repo.okay.com.mx/centos/8/x86_64/release/okay-release-1-3.el8.noarch.rpm
+	yum -y install curl gcc make autoconf autoconf-archive autogen automake --enablerepo=epel --enablerepo=powertools
+	yum -y install MySQL-python python python-yaml python-psycopg2 nodejs lm_sensors --enablerepo=epel --enablerepo=powertools
+	yum -y install nmap-ncat git zlib-devel libuuid-devel --enablerepo=epel --enablerepo=powertools
+	yum -y install libmnl-devel libuv-devel --enablerepo=epel --enablerepo=powertools
+	yum -y install json-c-devel libatomic libyaml-devel lz4-devel systemd-devel
+	yum -y install lz4-devel lz4 json-c-devel libuv-devel libuv --nobest --enablerepo=epel --enablerepo=powertools
+	yum -y install http://mirror.centos.org/centos/8/PowerTools/x86_64/os/Packages/Judy-devel-1.0.5-18.module_el8.1.0+217+4d875839.x86_64.rpm
+
+	# new centos 8 stream
+	cd /usr/local/src 
+	wget https://github.com/libuv/libuv/archive/refs/tags/v1.41.0.zip
+	unzip v1.41.0.zip
+	cd libuv-1.41.0
+	## important to run 2 times:
+	sh autogen.sh
+	sh autogen.sh
+	./configure
+	make
+	make install
+else
+	yum -y install curl gcc make autoconf autoconf-archive autogen automake --enablerepo=epel
+	yum -y install MySQL-python python python-yaml python-psycopg2 nodejs lm_sensors --enablerepo=epel
+	yum -y install nmap-ncat git zlib-devel libuuid-devel --enablerepo=epel
+	yum -y install libmnl-devel libuv-devel --enablerepo=epel
+	yum -y install json-c-devel libatomic libyaml-devel lz4-devel systemd-devel
+fi
+
+git clone https://github.com/firehol/netdata.git --depth=1 /usr/local/src/netdata
+
+if [ -e "/usr/local/src/netdata" ];then
+	cd /usr/local/src/netdata
+	./netdata-installer.sh --disable-cloud --dont-wait
+fi
+
+# Apache
+APACHECHK=`grep -i "^Listen" /usr/local/apache/conf/httpd.conf|grep 8181`
+
+if [ ! -z "APACHECHK" ];then
+	sed -i "s@http://localhost/@http://localhost:8181/@g" /usr/lib/netdata/conf.d/python.d/apache.conf
+	sed -i "s@http://127.0.0.1/@http://127.0.0.1:8181/@g" /usr/lib/netdata/conf.d/python.d/apache.conf
+else
+	sed -i "s@http://localhost:8181/@http://localhost/@g" /usr/lib/netdata/conf.d/python.d/apache.conf
+	sed -i "s@http://127.0.0.1:8181/@http://127.0.0.1/@g" /usr/lib/netdata/conf.d/python.d/apache.conf
+fi
+
+# Nginx
+if [ ! -e "/etc/nginx/conf.d/netdata.conf" ];then
+cat > /etc/nginx/conf.d/netdata.conf <<EOF
+server {
+	listen 127.0.0.1:80;
+	server_name 127.0.0.1;
+
+	location /stub_status {
+		stub_status;
+		allow 127.0.0.1;
+		deny all;
+	}
+}
+EOF
+fi
+service nginx reload
+
+# Varnish
+gpasswd -a netdata varnish
+
+# MySQL
+mysql -e "create user 'netdata'@'localhost';"
+mysql -e "grant usage on *.* to 'netdata'@'localhost';"
+mysql -e "flush privileges;"
+
+# LFD Alerts FIX
+LFDGREP=`grep "user:netdata" /etc/csf/csf.pignore`
+if [ -z "$LFDGREP" ];then
+	echo "user:netdata" >> /etc/csf/csf.pignore
+	service lfd restart
+fi
+
+
+# Create netdata socket run folder
+if [ ! -e "/run/netdata" ];then
+	mkdir -p /run/netdata
+	chown netdata.netdata /run/netdata
+fi
+
+CHKNETDATA=`grep netdata /usr/local/cwpsrv/conf/cwp_services.conf`
+sed -i "s/# bind to = \*/bind to = unix:\/run\/netdata\/netdata.sock/g" /etc/netdata/netdata.conf
+
+if [ -z "$CHKNETDATA" ];then
+cat >> /usr/local/cwpsrv/conf/cwp_services.conf <<EOF
+location /netdata {
+        return 301 /netdata/;
+}
+
+location ~ /netdata/(?<ndpath>.*) {
+        auth_pam "Secure Zone | root login required";
+        auth_pam_service_name "cwpadmin-auth";
+
+        proxy_redirect off;
+        proxy_set_header Host \$host;
+
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_set_header X-Forwarded-Server \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+        proxy_pass_request_headers on;
+        proxy_set_header Connection "keep-alive";
+        proxy_store off;
+        proxy_pass http://unix:/run/netdata/netdata.sock:/\$ndpath\$is_args\$args;
+
+        gzip on;
+        gzip_proxied any;
+        gzip_types *;
+}
+EOF
+fi
+
+if [ ! -e "/etc/pam.d/cwpadmin-auth" ];then
+cat > "/etc/pam.d/cwpadmin-auth" <<EOF
+#%PAM-1.0
+auth required pam_succeed_if.so user ingroup root
+auth       include      password-auth
+auth       required     pam_shells.so
+auth       required     pam_nologin.so
+
+account    include      password-auth
+password   include      password-auth
+
+session    required     pam_loginuid.so
+session    include      password-auth
+EOF
+fi
+
+# restart netdata
+echo "d /var/run/netdata 0755 root root" > /usr/lib/tmpfiles.d/netdata.conf
+service netdata restart
+service cwpsrv reload
+sleep 3
