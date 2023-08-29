@@ -36,6 +36,7 @@ else
 	yum -y install MySQL-python python python-yaml python-psycopg2 nodejs lm_sensors --enablerepo=epel
 	yum -y install nmap-ncat git zlib-devel libuuid-devel --enablerepo=epel
 	yum -y install libmnl-devel libuv-devel --enablerepo=epel
+	# New Code Below
 	yum -y install json-c-devel libatomic libyaml-devel lz4-devel systemd-devel
 fi
 
@@ -145,6 +146,7 @@ EOF
 fi
 
 # restart netdata
+# New Code Below
 echo "d /var/run/netdata 0755 root root" > /usr/lib/tmpfiles.d/netdata.conf
 service netdata restart
 service cwpsrv reload
