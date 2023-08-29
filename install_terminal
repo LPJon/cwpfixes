@@ -31,7 +31,7 @@ yum-config-manager --disable centos-sclo-rh
 yum -y --enablerepo=centos-sclo-rh-testing install devtoolset-$gccversion-gcc devtoolset-$gccversion-gcc-c++
 gccenvcheck=$(cat /etc/profile | grep devtoolset-$gccversion)
 if [ -z "$gccenvcheck" ]; then
-        echo 'source /opt/rh/devtoolset-$gccversion/enable' >> /etc/profile
+        echo "source /opt/rh/devtoolset-$gccversion/enable" >> /etc/profile
         source /opt/rh/devtoolset-$gccversion/enable
 fi
 source /opt/rh/devtoolset-$gccversion/enable
