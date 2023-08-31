@@ -8,27 +8,36 @@ usenvm=n
 # Version of Node.js to install. DEFAULT = 16.18.1
 nodeversion=16.18.1
 
+function getnodeversion {
+        node -v
+}
+
 if [ "$usenvm" == "n" ]; then
         if [ ! -e "/usr/bin/node" ];then
-        yum -y install nodejs --enablerepo=epel
-        cd /root
-        npm cache clean -f
-        npm install -g n
-        n stable
-        PATH="$PATH"
+                yum -y install nodejs --enablerepo=epel
+                cd /root
+                npm cache clean -f
+                npm install -g n
+                n stable
+                PATH="$PATH"
         fi
 
         if [ ! -e "/usr/bin/npm" ];then
-        yum -y install npm --enablerepo=epel
-        cd /root
+                yum -y install npm --enablerepo=epel
+                cd /root
         fi
 elif [ "$usenvm" == "y" ]; then
         if [ ! -d "$HOME/.nvm" ]; then
-        yum -y install curl
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-        source $HOME/.bashrc
-        nvm install "$nodeversion"
-        nvm use "$nodeversion"
+                yum -y install curl
+                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+                source $HOME/.bashrc
+                nvm install "$nodeversion"
+                nvm use "$nodeversion"
+        fi
+        if [ -d "$HOME/.nvm" ];then
+                if [ "getnodeversion" != "v$nodeversion" ]; then
+                        ln -sf  /root/.nvm/versions/node/v$nodeversion/bin/node
+                fi
         fi
 fi
 
