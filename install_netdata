@@ -12,6 +12,7 @@
 usenvm=n
 # Version of Node.js to install. DEFAULT = 16.18.1
 nodeversion=16.18.1
+telemetryoptout="--disable-telemetry"
 nodejs=
 
 function getsystemnodeversion {
@@ -98,7 +99,7 @@ git clone https://github.com/firehol/netdata.git --depth=1 /usr/local/src/netdat
 
 if [ -e "/usr/local/src/netdata" ];then
 	cd /usr/local/src/netdata
-	./netdata-installer.sh --disable-cloud --dont-wait
+	./netdata-installer.sh  $telemetryoptout --disable-cloud --dont-wait 
 fi
 
 # Apache
