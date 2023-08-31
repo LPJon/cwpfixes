@@ -7,13 +7,24 @@
 # ToDo:
 #  Automatic activate on boot
 
+# NEW CODE
+# Check if NVM and Node.JS is already installed and if it is skip it's installation
+# ToDo:
+#   Add NVM support
+if [ -e "$HOME/.nvm" ]; then
+	echo "NVM for Node.JS is installed...Skipping RPM Package Installation!"
+        nodejs=""
+else
+        nodejs="nodejs"
+fi
+
 # Check centos version
 centosversion=$(rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | cut -d"-" -f3 | cut -d"." -f 1 | head -n 1)
 if [[ "$centosversion" -eq "8" ]];then
 	yum -y install 'dnf-command(config-manager)'
 	yum -y install http://repo.okay.com.mx/centos/8/x86_64/release/okay-release-1-3.el8.noarch.rpm
 	yum -y install curl gcc make autoconf autoconf-archive autogen automake --enablerepo=epel --enablerepo=powertools
-	yum -y install MySQL-python python python-yaml python-psycopg2 nodejs lm_sensors --enablerepo=epel --enablerepo=powertools
+	yum -y install MySQL-python python python-yaml python-psycopg2 $nodejs lm_sensors --enablerepo=epel --enablerepo=powertools
 	yum -y install nmap-ncat git zlib-devel libuuid-devel --enablerepo=epel --enablerepo=powertools
 	yum -y install libmnl-devel libuv-devel --enablerepo=epel --enablerepo=powertools
 	yum -y install json-c-devel libatomic libyaml-devel lz4-devel systemd-devel
@@ -33,7 +44,7 @@ if [[ "$centosversion" -eq "8" ]];then
 	make install
 else
 	yum -y install curl gcc make autoconf autoconf-archive autogen automake --enablerepo=epel
-	yum -y install MySQL-python python python-yaml python-psycopg2 nodejs lm_sensors --enablerepo=epel
+	yum -y install MySQL-python python python-yaml python-psycopg2 $nodejs lm_sensors --enablerepo=epel
 	yum -y install nmap-ncat git zlib-devel libuuid-devel --enablerepo=epel
 	yum -y install libmnl-devel libuv-devel --enablerepo=epel
 	# New Code Below
