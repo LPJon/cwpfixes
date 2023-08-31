@@ -4,7 +4,7 @@ yum -y update ca-certificates
 
 # NEW CODE
 # Use NVM for node.js installation management. Options are "y" or "n" DEFAULT = n
-usenvm=y
+usenvm=n
 # Version of Node.js to install. DEFAULT = 16.18.1
 nodeversion=16.18.1
 
@@ -40,6 +40,9 @@ elif [ "$usenvm" == "y" ]; then
                 source $HOME/.bashrc
                 nvm install "$nodeversion"
                 nvm use "$nodeversion"
+                if [ "$(getsystemnodeversion)" != "v$nodeversion" ]; then
+                        ln -sf  /root/.nvm/versions/node/v"$nodeversion"/bin/node /usr/bin/node
+                fi
         fi
 fi
 
