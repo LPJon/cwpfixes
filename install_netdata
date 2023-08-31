@@ -46,6 +46,9 @@ function installnodeJS {
         	fi
 	fi
 }
+function installnodeJSDependencies {
+	yum -y install json-c-devel libatomic libyaml-devel lz4-devel systemd-devel
+}
 # ---------------------
 # Check centos version
 centosversion=$(rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | cut -d"-" -f3 | cut -d"." -f 1 | head -n 1)
@@ -78,8 +81,7 @@ else
 	yum -y install MySQL-python python python-yaml python-psycopg2 $nodejs lm_sensors --enablerepo=epel
 	yum -y install nmap-ncat git zlib-devel libuuid-devel --enablerepo=epel
 	yum -y install libmnl-devel libuv-devel --enablerepo=epel
-	# New Code Below
-	yum -y install json-c-devel libatomic libyaml-devel lz4-devel systemd-devel
+	installnodeJSDependencies
 fi
 
 git clone https://github.com/firehol/netdata.git --depth=1 /usr/local/src/netdata
