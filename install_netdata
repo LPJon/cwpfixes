@@ -19,15 +19,24 @@ function getsystemnodeversion {
                 /usr/bin/node -v
         fi
 }
+function checkfornodejsrpm {
+	yum list installed nodejs
+}
 function installnodeJS {
 	if [ "$usenvm" == "n" ]; then
 		if [ -e "$HOME/.nvm" ]; then
 			echo "NVM for Node.JS is installed...Skipping RPM Package Installation!"
         		nodejs=""
 		else
+			if [ -z "$(checkfornodejsrpm)" ]; then
+				rm -f /usr/bin/node
+			fi
         		nodejs="nodejs"
 		fi
 	elif [ "$usenvm" == "y" ]; then
+		if [ -z "$(checkfornodejsrpm)" ]; then
+			yum -y remove nodejs
+		fi
         	if [ -e "$HOME/.nvm" ];then
                 	export NVM_DIR="$HOME/.nvm"
 			[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
@@ -39,14 +48,14 @@ function installnodeJS {
                 	fi
         	fi
         	if [ ! -e "$HOME/.nvm" ]; then
-                	yum -y install curl
+        	       	yum -y install curl
                 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-                	export NVM_DIR="$HOME/.nvm"
+               		export NVM_DIR="$HOME/.nvm"
 			[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 			[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-                	nvm install "$nodeversion"
-                	nvm use "$nodeversion"
-                	ln -sf  /root/.nvm/versions/node/v"$nodeversion"/bin/node /usr/bin/node
+        	       	nvm install "$nodeversion"
+               		nvm use "$nodeversion"
+               		ln -sf  /root/.nvm/versions/node/v"$nodeversion"/bin/node /usr/bin/node
         	fi
 	fi
 }
