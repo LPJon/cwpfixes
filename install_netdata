@@ -20,7 +20,7 @@ function getsystemnodeversion {
         fi
 }
 function checkfornodejsrpm {
-	yum list installed nodejs
+	yum list installed nodejs | grep nodejs
 }
 function installnodeJS {
 	if [ "$usenvm" == "n" ]; then
@@ -34,7 +34,7 @@ function installnodeJS {
         		nodejs="nodejs"
 		fi
 	elif [ "$usenvm" == "y" ]; then
-		if [ -z "$(checkfornodejsrpm)" ]; then
+		if [ ! -z "$(checkfornodejsrpm)" ]; then
 			yum -y remove nodejs
 		fi
         	if [ -e "$HOME/.nvm" ];then
