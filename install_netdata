@@ -25,9 +25,6 @@ function checkfornodejsrpm {
 function installnodeJS {
 	if [ "$usenvm" == "n" ]; then
 		if [ -e "$HOME/.nvm" ]; then
-			echo "NVM for Node.JS is installed...Skipping RPM Package Installation!"
-        		nodejs=""
-		else
 			if [ -z "$(checkfornodejsrpm)" ]; then
 				rm -f /usr/bin/node
 			fi
