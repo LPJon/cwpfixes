@@ -1,7 +1,7 @@
 # CWP Fixes - Fixes for CentOS 7 versions of CentOS Web Panel
 Used for correcting CWP (CentOS Web Panel) install script code errors
 - # Installation
-  - # Netdata
+  - # Netdata - Live Server Metrics and Statistics
     
   To install the "install_netdata" script into your CWP server run the following command in an ssh terminal.
 
@@ -17,7 +17,7 @@ Used for correcting CWP (CentOS Web Panel) install script code errors
   NOTE: If you have already installed Netdata you will have to re-run the script manually with the following command in an ssh terminal ```/scripts/./install_netdata```. This will make the changes needed for NVM.
   If you would like to switch back just switch the ```usenvm=y``` back to ```usenvm=n``` and re-run the script again and it will be changed back to the original NodeJS RPM.
 
-- # CWP Pro Terminal
+  - # CWP Pro Terminal - A Browser Based Terminal Console for CWP Admins
 
   To install the "install_terminal" script into your CWP server run the following command in an ssh terminal.
 
