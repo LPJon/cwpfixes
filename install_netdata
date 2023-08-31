@@ -12,6 +12,7 @@
 usenvm=n
 # Version of Node.js to install. DEFAULT = 16.18.1
 nodeversion=16.18.1
+nodejs=
 
 function getsystemnodeversion {
         if [ -e "/usr/bin/node" ]; then
