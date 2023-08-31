@@ -19,7 +19,8 @@ function checkfornodejsrpm {
 if [ "$usenvm" == "n" ]; then
 	if [ -e "$HOME/.nvm" ]; then
 		if [ -z "$(checkfornodejsrpm)" ]; then
-		rm -f /usr/bin/node
+			rm -f /usr/bin/node
+		fi
 	fi
         if [ ! -e "/usr/bin/node" ];then
                 yum -y install nodejs --enablerepo=epel
