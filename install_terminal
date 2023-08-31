@@ -9,7 +9,9 @@ usenvm=n
 nodeversion=16.18.1
 
 function getsystemnodeversion {
-        /usr/bin/node -v
+        if [ -e "/usr/bin/node" ]; then
+                /usr/bin/node -v
+        fi
 }
 if [ "$usenvm" == "n" ]; then
         if [ ! -e "/usr/bin/node" ];then
