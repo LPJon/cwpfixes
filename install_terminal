@@ -16,6 +16,9 @@ function getsystemnodeversion {
 function checkfornodejsrpm {
 	yum list installed nodejs | grep nodejs
 }
+function currentnodefilepath {
+	nvm which current
+}
 if [ "$usenvm" == "n" ]; then
 	if [ -e "$HOME/.nvm" ]; then
 		if [ -z "$(checkfornodejsrpm)" ]; then
@@ -44,10 +47,10 @@ elif [ "$usenvm" == "y" ]; then
                 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
                 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
                 nvm install $nodeversion
+		nvm use $nodeversion
                 if [ "$(getsystemnodeversion)" != "v$nodeversion" ]; then
-                        ln -sf  /root/.nvm/versions/node/v"$nodeversion"/bin/node /usr/bin/node
+                        ln -sf  $(currentnodefilepath) /usr/bin/node
                 fi
-		nvm use system
         fi
         if [ ! -e "$HOME/.nvm" ]; then
                 yum -y install curl
@@ -56,8 +59,8 @@ elif [ "$usenvm" == "y" ]; then
                 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
                 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
                 nvm install "$nodeversion"
-                ln -sf  /root/.nvm/versions/node/v"$nodeversion"/bin/node /usr/bin/node
-		nvm use system
+		nvm use $nodeversion
+                ln -sf  $(currentnodefilepath) /usr/bin/node
         fi
 fi
 
