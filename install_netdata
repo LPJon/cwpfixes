@@ -63,63 +63,6 @@ function installnodeJS {
 function installnodeJSDependencies {
 	yum -y install json-c-devel libatomic libyaml-devel lz4-devel systemd-devel
 }
-# ---------------------
-# Check centos version
-# ---NEW CODE---PROPERLY DETECT THE VERSION OF LINUX
-centosversion=$(rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | sed -rn "s+(^.*release-)([0-9]?.*)(-.*)+\2+p" | cut -d"." -f 1 | head -n 1)
-# ---END NEW CODE---
-if [[ "$centosversion" -eq "8" ]];then
-	yum -y install 'dnf-command(config-manager)'
-	yum -y install yum-utils
-	if [ -f "/etc/yum.repos.d/okay.repo" ]; then
-		yum-config-manager --disable okay
-	fi
-	# ---NEW CODE---TO INSTALL ADDTIONAL REQUIRED PACKAGES---
-	yum install -y patch libtool elfutils-libelf-devel openssl-devel bison flex libatomic libyaml-devel systemd-devel --enablerepo=epel --enablerepo=powertools
-	yum-config-manager --enable okay
-	# ---END NEW CODE---
-	
-	yum -y install http://repo.okay.com.mx/centos/8/x86_64/release/okay-release-1-3.el8.noarch.rpm
-	
-	# ---NEW CODE TO DISAGLE GPG CHECK ON "OKAY" REPO (GPG IS BAD FOR THIS REPO)---
-	sed -i "s/gpgcheck\=.*/gpgcheck\=0/g" /etc/yum.repos.d/okay.repo
-	# ---END NEW CODE---
-	
-	# ---NEW CODE---TO CHANGE "OKAY" REPO TO CENTOS 9 STREAM FOR MISSING CENTOS 8 STREAM PACKAGES---
-	sed -i "s/\$releasever\/\$basearch\/release/9\/\$basearch\/release/" /etc/yum.repos.d/okay.repo
-	# ---END NEW CODE---
-	
-	yum -y install curl gcc make autoconf autoconf-archive autogen automake --enablerepo=epel --enablerepo=powertools
-	
-	# ---NEW CODE---CHANGED PYTHON TO PYTHON 3.9 PACKAGES TO WORK WITH MYSQL
-	yum -y install python3-mysql python39 python39-yaml python39-psycopg2 nodejs lm_sensors --enablerepo=epel --enablerepo=powertools
-	# ---END NEW CODE---
-	
-	yum -y install nmap-ncat git zlib-devel libuuid-devel --enablerepo=epel --enablerepo=powertools
-	yum -y install libmnl-devel libuv --enablerepo=epel --enablerepo=powertools
-	yum -y install lz4 json-c-devel libuv-devel libuv cmake brotli brotli-devel --nobest --enablerepo=epel --enablerepo=powertools
-	
-	# ---NEW CODE---TO INSTALL UNCORRUPTED CMAKE---
-	yum -y install cmake --enablerepo=epel --enablerepo=powertools --disablerepo=okay
-	# ---END NEW CODE---
-       	
-	#yum -y install http://mirror.centos.org/centos/8/PowerTools/x86_64/os/Packages/Judy-devel-1.0.5-18.module_el8.1.0+217+4d875839.x86_64.rpm
-	
-	# ---NEW CODE FOR THE JUDY DEVEL PACKAGE---
-	yum -y install http://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/Judy-devel-1.0.5-18.module_el8.3.0+757+d382997d.x86_64.rpm
-	# ---NEW CODE END---
-	
-	# ---NEW CODE---PACKAGES REQUIRED FOR NETDATA BUT ARE FOR CENTOS 9 STREAM-----
-	yum install -y https://rpmfind.net/linux/centos-stream/9-stream/BaseOS/x86_64/os/Packages/lz4-libs-1.9.3-5.el9.x86_64.rpm --allowerasing
-	yum install -y https://rpmfind.net/linux/centos-stream/9-stream/AppStream/x86_64/os/Packages/lz4-devel-1.9.3-5.el9.x86_64.rpm --allowerasing
-	# ---END NEW CODE---
-	
-	# ---NEW CODE---SET THE "okay" REPOSITORY BACK TO CENTOS 8 STREAM
-	sed -i "s/\/9\/\$basearch/\/\$releasever\/\$basearch/" /etc/yum.repos.d/okay.repo
-	yum-config-manager --disable okay
-	# ---END NEW CODE---
-
-# ---NEW CODE---CLEANS UP OLD INSTALLS OR INSTALL ATTEMPTS SO A CLEAN COMPILE CAN BE MADE
 function CleanupBadNetdataInstall {
 	echo "Checking for old netdata source directory..."
 	if [[ -d "/usr/local/src/netdata" ]]; then
@@ -146,6 +89,69 @@ function CleanupBadNetdataInstall {
 function NetdataStatus {
 	echo $(systemctl status netdata | grep Active: | sed -rn "s+(.*Active. )(.*)(\(.*)+\2+p")
 }
+# ---------------------
+# Check centos version
+# ---NEW CODE---PROPERLY DETECT THE VERSION OF LINUX
+centosversion=$(rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | sed -rn "s+(^.*release-)([0-9]?.*)(-.*)+\2+p" | cut -d"." -f 1 | head -n 1)
+# ---END NEW CODE---
+if [[ "$centosversion" =~ ^(8|9) ]];then
+	# ---NEW CODE--- CHECKS FOR CORRECT VERSION OF CENTOS STREAM AND APPLIES REPOSE AS NESSISARY
+	if [[ "$centosversion" -eq "8" ]];then
+		epelrepo="--enablerepo=epel"
+		powertoolsrepo="--enablerepo=powertools"
+		mysql8deps="python3-mysql python39 python39-yaml python39-psycopg2 autogen" 
+		# ---NEW CODE FOR THE JUDY DEVEL PACKAGE---
+		yum -y install http://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/Judy-devel-1.0.5-18.module_el8.3.0+757+d382997d.x86_64.rpm
+		# ---NEW CODE END---
+		# ---NEW CODE---PACKAGES REQUIRED FOR NETDATA BUT ARE FOR CENTOS 9 STREAM-----
+		yum install -y https://rpmfind.net/linux/centos-stream/9-stream/BaseOS/x86_64/os/Packages/lz4-libs-1.9.3-5.el9.x86_64.rpm --allowerasing
+		yum install -y https://rpmfind.net/linux/centos-stream/9-stream/AppStream/x86_64/os/Packages/lz4-devel-1.9.3-5.el9.x86_64.rpm --allowerasing
+		# ---END NEW CODE---
+	elif [[ "$centosversion" -eq "9" ]];then
+		epelrepo="--enablerepo=epel"
+		mysql9deps="python3-mysqlclient python3-distroinfo python3-psycopg2 Judy-devel lz4-libs lz4-devel"
+	fi
+	# ---END NEW CODE---
+	yum -y install 'dnf-command(config-manager)'
+	yum -y install yum-utils
+	if [ -f "/etc/yum.repos.d/okay.repo" ]; then
+		yum-config-manager --disable okay
+	fi
+	# ---NEW CODE---TO INSTALL ADDTIONAL REQUIRED PACKAGES---
+	yum install -y patch libtool elfutils-libelf-devel openssl-devel bison flex libatomic libyaml-devel systemd-devel $epelrepo $powertoolsrepo
+	yum-config-manager --enable okay
+	# ---END NEW CODE---
+	
+	yum -y install http://repo.okay.com.mx/centos/8/x86_64/release/okay-release-1-3.el8.noarch.rpm
+	
+	# ---NEW CODE TO DISAGLE GPG CHECK ON "OKAY" REPO (GPG IS BAD FOR THIS REPO)---
+	sed -i "s/gpgcheck\=.*/gpgcheck\=0/g" /etc/yum.repos.d/okay.repo
+	# ---END NEW CODE---
+	
+	# ---NEW CODE---TO CHANGE "OKAY" REPO TO CENTOS 9 STREAM FOR MISSING CENTOS 8 STREAM PACKAGES---
+	sed -i "s/\$releasever\/\$basearch\/release/9\/\$basearch\/release/" /etc/yum.repos.d/okay.repo
+	# ---END NEW CODE---
+	
+	yum -y install curl gcc make autoconf autoconf-archive automake $epelrepo $powertoolsrepo
+	
+	# ---NEW CODE---CHANGED PYTHON TO PYTHON 3.9 PACKAGES TO WORK WITH MYSQL
+	yum -y install $mysql8deps $mysql9deps nodejs lm_sensors $epelrepo $powertoolsrepo
+	# ---END NEW CODE---
+	
+	yum -y install nmap-ncat git zlib-devel libuuid-devel $epelrepo $powertoolsrepo
+	yum -y install libmnl-devel libuv $epelrepo $powertoolsrepo
+	yum -y install lz4 json-c-devel libuv-devel libuv cmake brotli brotli-devel --nobest $epelrepo $powertoolsrepo
+	
+	# ---NEW CODE---TO INSTALL UNCORRUPTED CMAKE---
+	yum -y install cmake $epelrepo $powertoolsrepo --disablerepo=okay
+	# ---END NEW CODE---
+       	
+	# ---NEW CODE---SET THE "okay" REPOSITORY BACK TO CENTOS 8 STREAM
+	sed -i "s/\/9\/\$basearch/\/\$releasever\/\$basearch/" /etc/yum.repos.d/okay.repo
+	yum-config-manager --disable okay
+	# ---END NEW CODE---
+
+# ---NEW CODE---CLEANS UP OLD INSTALLS OR INSTALL ATTEMPTS SO A CLEAN COMPILE CAN BE MADE
 systemctl daemon-reload
 echo "Netdata's status is: $(NetdataStatus)"
 # exit 0
@@ -172,6 +178,15 @@ fi
 	make install
 else
 	# NEW CODE BELOW
+	if [[ $(NetdataStatus) =~ ^(active|inactive) ]]; then
+		echo -e "Netdata is currently installed!....Please run the following command then restart this installer:\n /usr/local/src/netdata/packaging/installer/netdata-uninstaller.sh --yes --force"
+		exit 0
+	else
+		echo "Netdata's Service is not installed!...making sure any failed compiles are removed!"
+		CleanupBadNetdataInstall
+		echo "Done removing old compile of Netdata!"
+	fi
+	#sed -i "s/mirrorlist=/#mirrorlist=/g" /etc/yum.repos.d/* && sed -i "s/#baseurl=/baseurl=/g" /etc/yum.repos.d/* && sed -i "s/mirror\./vault\./g" /etc/yum.repos.d/*
 	installnodeJS
 	yum -y install curl gcc make autoconf autoconf-archive autogen automake --enablerepo=epel
 	yum -y install MySQL-python python python-yaml python-psycopg2 $nodejs lm_sensors --enablerepo=epel
@@ -180,13 +195,15 @@ else
 	installnodeJSDependencies
 fi
 
-# ---NEW CODE---ADDED THE "--recursive" SWITCH TO PROPERLY COMPILE NETDATA
-if [[ "$centosversion" -eq "8" ]];then
+# ---NEW CODE---ADDED THE "--recursive" SWITCH TO PROPERLY COMPILE NETDATA FOR CENTOS 8/9 - ADDED SUPPORT FOR CENTOS 7 LIMITED TO VERSION 1.37.0-91-nightly
+# CENTOS 7 ONLY - Commits on Oct 31, 2023 - https://github.com/netdata/netdata/commits?since=2023-10-31&until=2023-10-31
+if [[ "$centosversion" =~ ^(8|9) ]];then
 	git clone --recursive https://github.com/firehol/netdata.git --depth=1 /usr/local/src/netdata
 	#git clone --recursive https://github.com/netdata/netdata.git --depth=100 /usr/local/src/netdata
 else
-	git clone https://github.com/firehol/netdata.git --depth=1 /usr/local/src/netdata
-	#git clone https://github.com/netdata/netdata.git --depth=100 /usr/local/src/netdata
+	#git clone https://github.com/firehol/netdata.git --depth=1 /usr/local/src/netdata
+	git clone -b master https://github.com/netdata/netdata.git /usr/local/src/netdata
+	cd /usr/local/src/netdata && git reset --hard 6954b6f && cd /scripts
 fi
 # ---END NEW CODE---
 
