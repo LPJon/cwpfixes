@@ -203,7 +203,7 @@ if [[ "$centosversion" =~ ^(8|9) ]];then
 else
 	#git clone https://github.com/firehol/netdata.git --depth=1 /usr/local/src/netdata
 	git clone -b master https://github.com/netdata/netdata.git /usr/local/src/netdata
-	cd /usr/local/src/netdata && git reset --hard 6954b6f && cd /scripts
+	cd /usr/local/src/netdata && git reset --hard 9233b89 && cd /scripts
 fi
 # ---END NEW CODE---
 
